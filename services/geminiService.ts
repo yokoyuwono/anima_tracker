@@ -1,29 +1,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MediaItem, MediaType, AIEnrichmentResponse, AIRecommendation } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Helper to determine model based on complexity, though we stick to flash for speed/cost in this demo
 const MODEL_NAME = 'gemini-3-flash-preview';
 
 export const enrichMediaData = async (title: string, type: MediaType): Promise<AIEnrichmentResponse | null> => {
-  if (!apiKey) return null;
+  if (!process.env.API_KEY) return null;
 
   try {
-    const prompt = `Berikan informasi detail untuk ${type} dengan judul "${title}". 
-    Output HARUS dalam format JSON valid berisi:
-    - genres: array string
-    - description: deskripsi singkat (bahasa Indonesia)
-    - totalEpisodesOrChapters: number (estimasi jika belum tamat)
-    
-    Jangan gunakan markdown formatting.`;
+    const prompt = `Berikan informasi detail untuk ${type} dengan judul "${title}".`;
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            genres: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            description: { type: Type.STRING },
+            totalEpisodesOrChapters: { type: Type.NUMBER },
+          },
+          required: ["genres", "description", "totalEpisodesOrChapters"],
+        },
       }
     });
 
@@ -37,7 +42,7 @@ export const enrichMediaData = async (title: string, type: MediaType): Promise<A
 };
 
 export const getRecommendations = async (userList: MediaItem[]): Promise<AIRecommendation[]> => {
-  if (!apiKey || userList.length === 0) return [];
+  if (!process.env.API_KEY || userList.length === 0) return [];
 
   // Construct a summary of user preferences
   const favorites = userList
@@ -47,8 +52,7 @@ export const getRecommendations = async (userList: MediaItem[]): Promise<AIRecom
     .join(", ");
 
   const prompt = `Berdasarkan daftar favorit pengguna ini: [${favorites}], berikan 3 rekomendasi Anime atau Manga yang mungkin mereka sukai. 
-  Pastikan judulnya belum ada di daftar tersebut. 
-  Output JSON array of objects with keys: title, type (Anime/Manga), reason (Indonesian), genres.`;
+  Pastikan judulnya belum ada di daftar tersebut.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -56,6 +60,19 @@ export const getRecommendations = async (userList: MediaItem[]): Promise<AIRecom
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              type: { type: Type.STRING },
+              reason: { type: Type.STRING },
+              genres: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["title", "type", "reason", "genres"],
+          },
+        },
       }
     });
 
