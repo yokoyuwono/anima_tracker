@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Book, Tv, BarChart3, Sparkles, Search, Home, Loader2 } from 'lucide-react';
+import { Plus, Book, Tv, BarChart3, Search, Home } from 'lucide-react';
 import { MediaItem, MediaType } from './types';
 import { saveItems, getStoredItems } from './services/storageService';
-import { getRecommendations } from './services/geminiService';
 import { MediaCard } from './components/MediaCard';
 import { MediaForm } from './components/MediaForm';
 import { StatsView } from './components/StatsView';
@@ -15,11 +14,6 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   
-  // AI Recommendations State
-  const [showRecommendations, setShowRecommendations] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-
   useEffect(() => {
     setItems(getStoredItems());
   }, []);
@@ -72,14 +66,6 @@ function App() {
     setShowForm(true);
   };
 
-  const handleFetchRecommendations = async () => {
-    setShowRecommendations(true);
-    setIsLoadingRecs(true);
-    const recs = await getRecommendations(items);
-    setRecommendations(recs);
-    setIsLoadingRecs(false);
-  };
-
   // Filter Logic
   const filteredItems = items.filter(item => {
     // If Tab is HOME, show everything unless searching? Or just Show All. 
@@ -126,12 +112,6 @@ function App() {
                   className="p-2.5 bg-slate-800 rounded-xl text-slate-300 hover:text-white"
                 >
                   <Search size={22} />
-                </button>
-                <button 
-                  onClick={handleFetchRecommendations}
-                  className="p-2.5 bg-gradient-to-br from-indigo-900 to-purple-900 rounded-xl text-purple-200 border border-purple-700/30"
-                >
-                  <Sparkles size={22} />
                 </button>
              </>
            )}
@@ -211,59 +191,6 @@ function App() {
           onDelete={editingItem ? handleDeleteItem : undefined}
           onCancel={() => setShowForm(false)}
         />
-      )}
-
-      {/* Recommendations Sheet (Simplified for Mobile) */}
-      {showRecommendations && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 w-full max-w-lg sm:rounded-2xl rounded-t-3xl border-t sm:border border-slate-700 shadow-2xl flex flex-col h-[80vh] animate-slide-up">
-             <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                 <Sparkles size={18} className="text-yellow-400" /> Rekomendasi
-               </h2>
-               <button onClick={() => setShowRecommendations(false)} className="p-2 bg-slate-800 rounded-full">
-                 <Plus size={20} className="rotate-45" />
-               </button>
-             </div>
-             <div className="flex-1 overflow-y-auto p-4">
-                {isLoadingRecs ? (
-                   <div className="flex flex-col items-center justify-center h-full">
-                     <Loader2 size={32} className="animate-spin text-indigo-500 mb-4" />
-                     <p className="text-slate-400 text-sm">Mencari referensi terbaik...</p>
-                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recommendations.map((rec, idx) => (
-                       <div key={idx} className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                          <div className="flex justify-between mb-2">
-                             <h3 className="font-bold text-white">{rec.title}</h3>
-                             <span className="text-xs font-bold bg-slate-700 px-2 py-1 rounded text-slate-300 h-fit">{rec.type}</span>
-                          </div>
-                          <p className="text-sm text-slate-400 mb-3">{rec.reason}</p>
-                          <button 
-                             onClick={() => {
-                               handleSaveItem({
-                                 title: rec.title,
-                                 type: rec.type as MediaType,
-                                 status: 'Rencana' as any,
-                                 currentProgress: 0,
-                                 rating: 0,
-                                 description: rec.reason
-                               });
-                               setShowRecommendations(false);
-                             }}
-                             className="w-full py-2.5 bg-indigo-600/20 text-indigo-300 rounded-lg text-sm font-bold"
-                          >
-                             + Tambah ke Rencana
-                          </button>
-                       </div>
-                    ))}
-                    {recommendations.length === 0 && <p className="text-center text-slate-500 mt-10">Tidak ada rekomendasi.</p>}
-                  </div>
-                )}
-             </div>
-          </div>
-        </div>
       )}
     </div>
   );

@@ -24,16 +24,3 @@ export interface MediaItem {
   link?: string; // URL for reading/watching
   updatedAt: number;
 }
-
-export interface AIEnrichmentResponse {
-  genres: string[];
-  description: string;
-  totalEpisodesOrChapters: number;
-}
-
-export interface AIRecommendation {
-  title: string;
-  type: MediaType;
-  reason: string;
-  genres: string[];
-}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { MediaItem, MediaType, MediaStatus } from '../types';
-import { enrichMediaData } from '../services/geminiService';
-import { Wand2, X, Save, Loader2, Minus, Plus, Star, Link as LinkIcon, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Save, Minus, Plus, Star, Link as LinkIcon, Trash2 } from 'lucide-react';
 
 interface MediaFormProps {
   initialData?: MediaItem;
@@ -83,19 +82,6 @@ export const MediaForm: React.FC<MediaFormProps> = ({ initialData, onSave, onDel
   const [description, setDescription] = useState(initialData?.description || '');
   const [link, setLink] = useState(initialData?.link || '');
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || '');
-  
-  const [isEnriching, setIsEnriching] = useState(false);
-  
-  const handleEnrich = async () => {
-    if (!title) return;
-    setIsEnriching(true);
-    const data = await enrichMediaData(title, type);
-    if (data) {
-      setDescription(data.description);
-      if (data.totalEpisodesOrChapters) setTotalProgress(data.totalEpisodesOrChapters);
-    }
-    setIsEnriching(false);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,18 +125,9 @@ export const MediaForm: React.FC<MediaFormProps> = ({ initialData, onSave, onDel
                   autoFocus={!initialData}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                   placeholder="Judul Anime/Manga..."
                 />
-                <button
-                  type="button"
-                  onClick={handleEnrich}
-                  disabled={isEnriching || !title}
-                  className="bg-indigo-900/30 text-indigo-300 border border-indigo-500/30 px-4 rounded-xl flex flex-col items-center justify-center gap-1 min-w-[64px] hover:bg-indigo-900/50 transition-colors"
-                >
-                  {isEnriching ? <Loader2 size={20} className="animate-spin" /> : <Wand2 size={20} />}
-                  <span className="text-[10px] font-bold">INFO</span>
-                </button>
               </div>
             </div>
 
