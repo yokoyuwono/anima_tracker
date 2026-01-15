@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Book, Tv, BarChart3, Search, Home } from 'lucide-react';
+import { Plus, Book, Tv, BarChart3, Search, Home, Loader2, WifiOff } from 'lucide-react';
 import { MediaItem, MediaType } from './types';
-import { saveItems, getStoredItems } from './services/storageService';
+import { getStoredItems, createItem, updateItem, deleteItem as apiDeleteItem } from './services/storageService';
 import { MediaCard } from './components/MediaCard';
 import { MediaForm } from './components/MediaForm';
 import { StatsView } from './components/StatsView';
@@ -13,52 +13,76 @@ function App() {
   const [editingItem, setEditingItem] = useState<MediaItem | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   
-  useEffect(() => {
-    setItems(getStoredItems());
-  }, []);
-
-  const saveToStorage = (newItems: MediaItem[]) => {
-    setItems(newItems);
-    saveItems(newItems);
+  // Fetch data on mount
+  const fetchData = async () => {
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const data = await getStoredItems();
+      setItems(data);
+    } catch (e) {
+      console.error(e);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveItem = (itemData: Omit<MediaItem, 'id' | 'updatedAt'>) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSaveItem = async (itemData: Omit<MediaItem, 'id' | 'updatedAt'>) => {
+    // Optimistic UI Update
     const newItem: MediaItem = {
       ...itemData,
       id: editingItem ? editingItem.id : crypto.randomUUID(),
       updatedAt: Date.now(),
-      // imageUrl is now correctly included in ...itemData from the form
     };
 
-    let newItems;
+    const previousItems = [...items];
+    
+    // Update local state immediately
     if (editingItem) {
-      newItems = items.map(i => i.id === editingItem.id ? newItem : i);
+      setItems(items.map(i => i.id === editingItem.id ? newItem : i));
+      // Call API in background
+      await updateItem(newItem);
     } else {
-      newItems = [newItem, ...items];
+      setItems([newItem, ...items]);
+      // Call API in background
+      await createItem(newItem);
     }
     
-    saveToStorage(newItems);
+    // In a real robust app, we would revert 'items' if the API call fails.
+    // For this simple version, we assume success or refresh on reload.
+    
     setShowForm(false);
     setEditingItem(undefined);
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (window.confirm('Hapus item ini?')) {
-      const newItems = items.filter(i => i.id !== id);
-      saveToStorage(newItems);
-      setShowForm(false); // Close form if deleting from form
+      const previousItems = [...items];
+      // Optimistic delete
+      setItems(items.filter(i => i.id !== id));
+      setShowForm(false);
+      
+      await apiDeleteItem(id);
     }
   };
 
-  const handleQuickUpdate = (item: MediaItem) => {
+  const handleQuickUpdate = async (item: MediaItem) => {
     const updatedItem = {
       ...item,
       currentProgress: item.currentProgress + 1,
       updatedAt: Date.now()
     };
-    const newItems = items.map(i => i.id === item.id ? updatedItem : i);
-    saveToStorage(newItems);
+    
+    setItems(items.map(i => i.id === item.id ? updatedItem : i));
+    await updateItem(updatedItem);
   };
 
   const handleEditItem = (item: MediaItem) => {
@@ -68,8 +92,6 @@ function App() {
 
   // Filter Logic
   const filteredItems = items.filter(item => {
-    // If Tab is HOME, show everything unless searching? Or just Show All. 
-    // Let's make HOME show All, and other tabs filter.
     const matchesTab = activeTab === 'HOME' || activeTab === 'STATS' || item.type === activeTab;
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesTab && matchesSearch;
@@ -120,7 +142,18 @@ function App() {
 
       {/* Main Scrollable Content */}
       <main className="px-4 py-6 pb-32 max-w-2xl mx-auto">
-        {activeTab === 'STATS' ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-32 text-slate-500 animate-pulse">
+            <Loader2 size={48} className="animate-spin mb-4" />
+            <p>Memuat Data...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-red-400">
+             <WifiOff size={48} className="mb-4" />
+             <p className="mb-2">Gagal memuat data.</p>
+             <button onClick={fetchData} className="px-4 py-2 bg-slate-800 rounded-lg text-white text-sm">Coba Lagi</button>
+          </div>
+        ) : activeTab === 'STATS' ? (
           <StatsView items={items} />
         ) : (
           <>
